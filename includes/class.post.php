@@ -11,9 +11,9 @@ class swpm_xmlrpc_post extends swpm_xmlrpc_helper
 	{
 		$this->methods = $methods + array(
 			'post.getPost'			=> array($this, 'get_post'),
-			'post.addPost'			=> array($this, 'add_post'),
-			'post.editPost'			=> array($this, 'edit_post'),
-			'post.deletePost'		=> array($this, 'delete_post'),
+			'post.addPosts'			=> array($this, 'add_posts'),
+			'post.editPosts'		=> array($this, 'edit_posts'),
+			'post.deletePosts'		=> array($this, 'delete_posts'),
 		);
 	}
 
@@ -138,24 +138,10 @@ class swpm_xmlrpc_post extends swpm_xmlrpc_helper
 		}
 	}
 
-	public function add_post($args)
-	{
-		$user = $this->login($username, $password);
-		if (is_a($user, 'IXR_Error'))
-		{
-			return $user;
-		}
-	}
-
-	public function edit_post($args)
-	{
-		return 'Edit';
-	}
-
-	public function delete_post($args)
+	public function add_posts($args)
 	{
 		$username = $args[0];
-		$post_id = (int) $args[1];
+		$posts = (isset($args[1][0])) ? $args[1] : array($args[1]);
 
 		$user = $this->login($username);
 		if (is_a($user, 'IXR_Error'))
@@ -163,20 +149,59 @@ class swpm_xmlrpc_post extends swpm_xmlrpc_helper
 			return $user;
 		}
 
-		$post = wp_get_single_post($post_id);
-		if (!$post)
+		$errors = array();
+		foreach ($posts as $post)
 		{
-			return new IXR_Error(404, 'Resource does not exist');
+			$result = wp_insert_post($post);
+
+			if (is_wp_error($result))
+			{
+				$errors[] = $result->get_error_code();
+			}
 		}
 
-		if (wp_delete_post($post_id))
+		return (!empty($errors)) ? $errors : 'Post(s) inserted successfully';
+	}
+
+	public function edit_posts($args)
+	{
+		$username = $args[0];
+		$posts = (isset($args[1][0])) ? $args[1] : array($args[1]);
+
+		$user = $this->login($username);
+		if (is_a($user, 'IXR_Error'))
 		{
-			return 'Deleted successfully';
+			return $user;
 		}
-		else
+
+		foreach ($posts as $post)
 		{
-			return new IXR_Error(500, 'Failed to delete specified post');
+			wp_update_post($post);
 		}
+
+		return 'Post(s) updated successfully';
+	}
+
+	public function delete_posts($args)
+	{
+		$username = $args[0];
+		$posts = (array) $args[1];
+
+		$user = $this->login($username);
+		if (is_a($user, 'IXR_Error'))
+		{
+			return $user;
+		}
+
+		foreach ($posts as $post)
+		{
+			if (false === wp_delete_post($post))
+			{
+				return 'Cannot delete post: ' . $post;
+			}
+		}
+
+		return 'Post(s) deleted successfully';
 	}
 
 	// Taken from class-wp-xmlrpc-server.php
