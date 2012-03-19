@@ -12,9 +12,9 @@ class swpm_xmlrpc_user extends swpm_xmlrpc_helper
 		$this->methods = $methods + array(
 			'user.getUser'			=> array($this, 'get_user'),
 			'user.getUsers'			=> array($this, 'get_users'),
-			'user.addUser'			=> array($this, 'add_user'),
-			'user.editUser'			=> array($this, 'edit_user'),
-			'user.deleteUser'		=> array($this, 'delete_user'),
+			'user.addUsers'			=> array($this, 'add_users'),
+			'user.editUsers'			=> array($this, 'edit_users'),
+			'user.deleteUsers'		=> array($this, 'delete_users'),
 		);
 	}
 
@@ -38,40 +38,110 @@ class swpm_xmlrpc_user extends swpm_xmlrpc_helper
 
 	public function get_users($args)
 	{
+		$username = $args[0];
+		$query_args = (isset($args[1])) ? $args[1] : array();
+
+		$user = $this->login($username);
+		if (is_a($user, 'IXR_Error'))
+		{
+			return $user;
+		}
+
+		$query_args = array(
+			'number'	=> (isset($query_args['number'])) ? $query_args['number'] : 20,
+			'offset'	=> (isset($query_args['offset'])) ? $query_args['offset'] : 0,
+			'role'		=> (isset($query_args['role'])) ? $query_args['role'] : '',
+			'search'	=> (isset($query_args['search'])) ? '*' . $query_args['search'] . '*' : '',
+			'fields'	=> (isset($query_args['fields'])) ? $query_args['fields'] : 'all_with_meta',
+		);
+
+		$users = new WP_User_Query($query_args);
+		return $users->get_results();
 	}
 
-	public function add_user($args)
-	{
-	}
-
-	public function edit_user($args)
-	{
-	}
-
-	public function delete_user($args)
+	public function add_users($args)
 	{
 		$username = $args[0];
-		$user = $args[1];
+		$userdata = $args[1];
+
+		$user = $this->login($username);
+		if (is_a($user, 'IXR_Error'))
+		{
+			return $user;
+		}
+
+		// We need a multidimensional array so the foreach loop doesn't error
+		$users = (!is_array($userdata[0])) ? array($userdata) : $userdata;
+
+		$errors = array();
+		foreach ($users as $user)
+		{
+			$result = wp_insert_user($user);
+
+			if (is_wp_error($result))
+			{
+				$errors[] = $result->get_error_code();
+			}
+		}
+
+		return (!empty($errors)) ? implode("\n", $errors) : 'User(s) inserted successfully';
+	}
+
+	public function edit_users($args)
+	{
+		$username = $args[0];
+		$userdata = $args[1];
+
+		$user = $this->login($username);
+		if (is_a($user, 'IXR_Error'))
+		{
+			return $user;
+		}
+
+		// We need a multidimensional array so the foreach loop doesn't error
+		$users = (!is_array($userdata[0])) ? array($userdata) : $userdata;
+
+		foreach ($users as $user)
+		{
+			$result = wp_update_user($user);
+		}
+
+		return 'User(s) updated successfully';
+	}
+
+	public function delete_users($args)
+	{
+		$username = $args[0];
+		$users = (array) $args[1];
 		$reassign = (isset($args[2])) ? $args[2] : 'novalue';
 
-		if (is_string($user))
+		if (in_array($username, $users))
 		{
-			$user_id = get_user_by('login', $user);
-			$user_id = $user_id->ID;
-		}
-		else
-		{
-			$user_id = $user;
+			return 'Cannot delete ' . $username . ' while in use';
 		}
 
-		if (wp_delete_user($user_id, $reassign))
+		$user = $this->login($username);
+		if (is_a($user, 'IXR_Error'))
 		{
-			return 'User deleted successfully';
+			return $user;
 		}
-		else
+
+		foreach ($users as $user)
 		{
-			return 'Unable to delete specified user';
+			if (is_string($user))
+			{
+				$user_id = get_user_by('login', $user);
+				$user_id = $user_id->ID;
+			}
+			else
+			{
+				$user_id = $user;
+			}
+
+			wp_delete_user($user_id, $reassign);
 		}
+
+		return 'User deleted successfully';
 	}
 }
 
