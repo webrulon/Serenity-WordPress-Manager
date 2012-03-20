@@ -113,19 +113,24 @@ class swpm_xmlrpc_update extends swpm_xmlrpc_helper
 
 	public function update_plugins($args)
 	{
-		$user = $this->login($args[0]);
+		$username = $args[0];
+		$updates = (isset($args[1])) ? (array) $args[1] : array();
+
+		$user = $this->login($username);
 		if (is_a($user, 'IXR_Error'))
 		{
 			return $user;
 		}
 
-		$args[1] = 'true';
-		$plugins = $this->get_plugins($args, $user);
+		$plugins = $this->get_plugins(array($username, 'true'), $user);
 
 		$updates = array();
 		foreach ($plugins as $file => $plugin)
 		{
-			$updates[] = $file;
+			if ((!empty($updates) && in_array($file, $updates)) || empty($updates))
+			{
+				$updates[] = $file;
+			}
 		}
 
 		ob_start();
@@ -194,19 +199,24 @@ class swpm_xmlrpc_update extends swpm_xmlrpc_helper
 
 	public function update_themes($args)
 	{
-		$user = $this->login($args[0]);
+		$username = $args[0];
+		$updates = (isset($args[1])) ? (array) $args[1] : array();
+
+		$user = $this->login($username);
 		if (is_a($user, 'IXR_Error'))
 		{
 			return $user;
 		}
 
-		$args[1] = 'true';
-		$themes = $this->get_themes($args, $user);
+		$themes = $this->get_themes(array($username, 'true'), $user);
 
 		$updates = array();
 		foreach ($themes as $name => $theme)
 		{
-			$updates[] = $theme['slug'];
+			if ((!empty($updates) && in_array($theme['slug'], $updates)) || empty($updates))
+			{
+				$updates[] = $theme['slug'];
+			}
 		}
 
 		ob_start();
