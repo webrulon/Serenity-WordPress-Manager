@@ -13,6 +13,10 @@ define('SWPM_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SWPM_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('IN_SWPM', true);
 
+if (is_admin())
+{
+	include_once(SWPM_PLUGIN_DIR . 'class.admin.php');
+}
 include_once(SWPM_PLUGIN_DIR . 'includes/class.core.php');
 
 add_filter('wp_xmlrpc_server_class', 'swpm_xmlrpc', 99);
